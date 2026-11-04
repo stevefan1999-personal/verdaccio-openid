@@ -1,6 +1,6 @@
+import deepmerge from "@fastify/deepmerge";
 import { defaultSecurity } from "@verdaccio/config";
 import type { Config, PackageList, Security } from "@verdaccio/types";
-import merge from "deepmerge";
 import { boolean, mixed, object, Schema, string } from "yup";
 
 import { plugin, pluginKey } from "@/constants";
@@ -26,6 +26,8 @@ import {
   RedisStoreConfigHolder,
 } from "./Store";
 import { getEnvironmentValue, getStoreFilePath, getTTLValue, handleValidationError } from "./utils";
+
+const merge = deepmerge({ symbols: true });
 
 export interface ConfigHolder {
   providerHost: string;

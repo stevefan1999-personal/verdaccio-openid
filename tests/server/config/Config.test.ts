@@ -1,6 +1,5 @@
 import { defaultSecurity } from "@verdaccio/config";
-import type { Config } from "@verdaccio/types";
-import merge from "deepmerge";
+import type { Config, Security } from "@verdaccio/types";
 
 import ParsedPluginConfig from "@/server/config/Config";
 import * as utils from "@/server/config/utils";
@@ -29,7 +28,89 @@ describe("ParsedPluginConfig", () => {
 
   it("should merge default security with verdaccio config", () => {
     const config = new ParsedPluginConfig(mockConfig, mockVerdaccioConfig);
-    expect(config.security).toEqual(merge(defaultSecurity, {}));
+    expect(config.security).toEqual(defaultSecurity);
+    expect(config.security).not.toBe(defaultSecurity);
+  });
+
+  it.each([undefined, null])("should use security defaults for absent input %s", (security) => {
+    const config = new ParsedPluginConfig(mockConfig, {
+      ...mockVerdaccioConfig,
+      security,
+    } as Config);
+
+    expect(config.security).toEqual(defaultSecurity);
+  });
+
+  it("should preserve nested token options without mutating either input", () => {
+    const security = {
+      web: { sign: { expiresIn: "15m", audience: ["browser"] } },
+      api: { legacy: false, jwt: { sign: { expiresIn: "10m" }, verify: { algorithms: ["HS256"] } } },
+    } as Security;
+    const originalSecurity = structuredClone(security);
+    const originalDefaults = structuredClone(defaultSecurity);
+    const config = new ParsedPluginConfig(mockConfig, { ...mockVerdaccioConfig, security });
+    const result = config.security;
+
+    expect(result).toEqual({
+      web: { sign: { expiresIn: "15m", audience: ["browser"] }, verify: {} },
+      api: { legacy: false, jwt: { sign: { expiresIn: "10m" }, verify: { algorithms: ["HS256"] } } },
+    });
+    result.api.jwt!.verify!.algorithms!.push("HS512");
+    result.web.sign.expiresIn = "1s";
+    expect(security).toEqual(originalSecurity);
+    expect(defaultSecurity).toEqual(originalDefaults);
+    expect(config.security.api.jwt!.verify!.algorithms).toEqual(["HS256"]);
+  });
+
+  it("should concatenate token option arrays in order", () => {
+    const originalVerify = defaultSecurity.web.verify;
+    try {
+      defaultSecurity.web.verify = { algorithms: ["HS256"] };
+      const config = new ParsedPluginConfig(mockConfig, {
+        ...mockVerdaccioConfig,
+        security: { web: { verify: { algorithms: ["HS512"] } } },
+      } as Config);
+
+      expect(config.security.web.verify.algorithms).toEqual(["HS256", "HS512"]);
+      expect(defaultSecurity.web.verify.algorithms).toEqual(["HS256"]);
+    } finally {
+      defaultSecurity.web.verify = originalVerify;
+    }
+  });
+
+  it("should preserve enumerable symbols and clone their values", () => {
+    const visible = Symbol("visible option");
+    const hidden = Symbol("hidden option");
+    const option = { audiences: ["browser"] };
+    const security = Object.defineProperty({ [visible]: option }, hidden, { value: "hidden" });
+    const config = new ParsedPluginConfig(mockConfig, { ...mockVerdaccioConfig, security } as Config);
+    const result = config.security;
+
+    expect(Reflect.get(result, visible)).toEqual(option);
+    expect(Reflect.get(result, visible)).not.toBe(option);
+    expect(Object.getOwnPropertySymbols(result)).toEqual([visible]);
+  });
+
+  it.each(["__proto__", "constructor", "prototype"])("should reject %s keys in merged and cloned objects", (key) => {
+    const hostile = { [key]: { inheritedOption: true } };
+    const security = {
+      ...hostile,
+      web: { sign: { ...hostile, expiresIn: "15m" } },
+      api: { jwt: { verify: hostile } },
+      extraOptions: [hostile],
+    } as Security & { extraOptions: Record<string, unknown>[] };
+    const config = new ParsedPluginConfig(mockConfig, { ...mockVerdaccioConfig, security });
+    const result = config.security as typeof security;
+    const objects = [result, result.web.sign, result.api.jwt!.verify!, result.extraOptions[0]];
+
+    for (const object of objects) {
+      expect(Object.getPrototypeOf(object)).toBe(Object.prototype);
+      expect(Object.hasOwn(object, key)).toBe(false);
+      expect(Reflect.get(object, "inheritedOption")).toBeUndefined();
+    }
+    expect(Object.prototype).not.toHaveProperty("inheritedOption");
+    expect(result.web.sign.expiresIn).toBe("15m");
+    expect(Object.hasOwn(security, key)).toBe(true);
   });
 
   it("should return packages from verdaccio config", () => {

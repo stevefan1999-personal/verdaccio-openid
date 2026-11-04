@@ -65,6 +65,7 @@ describe("AuthCore with native Verdaccio helpers", () => {
       real_groups: ["registry-user"],
       groups: ["registry-user", "$all", "$authenticated", "@all", "@authenticated", "all"],
       iat: issuedAt,
+      nbf: issuedAt,
       exp: issuedAt + tokenLifetime,
       aud: "registry",
       iss: "plugin",
@@ -96,6 +97,18 @@ describe("AuthCore with native Verdaccio helpers", () => {
     const token = await createCore(jwtSecurity, "x".repeat(32)).issueNpmToken("reader", ["registry-user"], "unused");
 
     expect(await createCore(jwtSecurity).verifyNpmToken(token)).toEqual(anonymous);
+  });
+
+  it("refuses a token before its configured activation time", async () => {
+    const core = createCore({
+      ...jwtSecurity,
+      api: { jwt: { ...jwtSecurity.api.jwt, sign: { ...jwtSecurity.api.jwt!.sign, notBefore: 1 } } },
+    });
+    const token = await core.issueNpmToken("reader", ["registry-user"], "unused");
+
+    await expect(core.verifyNpmToken(token)).rejects.toThrow("jwt not active");
+    vi.setSystemTime(now.getTime() + millisecondsPerSecond);
+    expect(await core.verifyNpmToken(token)).toHaveProperty("name", "reader");
   });
 
   it.each([{ audience: "other-registry" }, { issuer: "other-plugin" }, { algorithm: "HS512" as const }])(

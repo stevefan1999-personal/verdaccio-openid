@@ -53,7 +53,11 @@ describe("ParsedPluginConfig", () => {
 
     expect(result).toEqual({
       web: { sign: { expiresIn: "15m", audience: ["browser"] }, verify: {} },
-      api: { legacy: false, jwt: { sign: { expiresIn: "10m" }, verify: { algorithms: ["HS256"] } } },
+      api: {
+        ...originalDefaults.api,
+        legacy: false,
+        jwt: { sign: { expiresIn: "10m" }, verify: { algorithms: ["HS256"] } },
+      },
     });
     result.api.jwt!.verify!.algorithms!.push("HS512");
     result.web.sign.expiresIn = "1s";

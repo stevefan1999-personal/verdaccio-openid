@@ -2,7 +2,7 @@
 
 ## 前置条件
 
-- [Node.js](https://nodejs.org/) >= 22
+- [Node.js](https://nodejs.org/) >= 24
 - [pnpm](https://pnpm.io/) >= 11
 
 ## 环境搭建

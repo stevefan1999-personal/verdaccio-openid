@@ -14,7 +14,7 @@ verdaccio-openid adds OpenID Connect login to Verdaccio for both the web UI and 
 ## Compatibility
 
 - Verdaccio 5, 6, 7
-- Node >= 20.19.0
+- Node >= 24
 - Browsers that support [ES6](https://caniuse.com/?search=es6)
 
 ## Install

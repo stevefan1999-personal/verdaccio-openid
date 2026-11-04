@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- [Node.js](https://nodejs.org/) >= 20.19.0
+- [Node.js](https://nodejs.org/) >= 24
 - [pnpm](https://pnpm.io/) >= 11
 
 ## Setup

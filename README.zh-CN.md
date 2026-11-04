@@ -14,7 +14,7 @@ verdaccio-openid 为 Verdaccio 增加了 OpenID Connect 登录支持，同时覆
 ## 兼容性
 
 - Verdaccio 5、6、7
-- Node >= 20.19.0
+- Node >= 24
 - 支持 [ES6](https://caniuse.com/?search=es6) 的浏览器
 
 ## 安装
